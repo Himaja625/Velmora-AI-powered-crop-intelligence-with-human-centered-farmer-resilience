@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdvisoryRouteImport } from './routes/advisory'
+import { Route as CommunityRouteImport } from './routes/community'
 import { Route as FieldScanRouteImport } from './routes/field-scan'
 import { Route as TalkRouteImport } from './routes/talk'
 
@@ -19,9 +21,19 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdvisoryRoute = AdvisoryRouteImport.update({
   id: '/advisory',
   path: '/advisory',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommunityRoute = CommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FieldScanRoute = FieldScanRouteImport.update({
@@ -37,34 +49,50 @@ const TalkRoute = TalkRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/advisory': typeof AdvisoryRoute
+  '/community': typeof CommunityRoute
   '/field-scan': typeof FieldScanRoute
   '/talk': typeof TalkRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/advisory': typeof AdvisoryRoute
+  '/community': typeof CommunityRoute
   '/field-scan': typeof FieldScanRoute
   '/talk': typeof TalkRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/advisory': typeof AdvisoryRoute
+  '/community': typeof CommunityRoute
   '/field-scan': typeof FieldScanRoute
   '/talk': typeof TalkRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/advisory' | '/field-scan' | '/talk'
+  fullPaths:
+    '/' | '/about' | '/advisory' | '/community' | '/field-scan' | '/talk'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/advisory' | '/field-scan' | '/talk'
-  id: '__root__' | '/' | '/advisory' | '/field-scan' | '/talk'
+  to: '/' | '/about' | '/advisory' | '/community' | '/field-scan' | '/talk'
+  id:
+    | '__root__'
+    | '/'
+    | '/about'
+    | '/advisory'
+    | '/community'
+    | '/field-scan'
+    | '/talk'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AdvisoryRoute: typeof AdvisoryRoute
+  CommunityRoute: typeof CommunityRoute
   FieldScanRoute: typeof FieldScanRoute
   TalkRoute: typeof TalkRoute
 }
@@ -78,11 +106,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/advisory': {
       id: '/advisory'
       path: '/advisory'
       fullPath: '/advisory'
       preLoaderRoute: typeof AdvisoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/community': {
+      id: '/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof CommunityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/field-scan': {
@@ -104,10 +146,22 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AdvisoryRoute: AdvisoryRoute,
+  CommunityRoute: CommunityRoute,
   FieldScanRoute: FieldScanRoute,
   TalkRoute: TalkRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
