@@ -143,7 +143,7 @@ export const COMMUNITY_POSTS: CommunityPost[] = [
     room: "young-farmers",
     author: "Second Season 03",
     timeAgo: "2 days ago",
-    body: "Took over four acres from my father last year. I ask a lot of questions and sometimes feel that is held against me. It is not — asking is how I stopped losing the whole plot.",
+    body: "Took over four acres from my father last year. I ask a lot of questions and sometimes feel that is held against me. It is not - asking is how I stopped losing the whole plot.",
     replies: 12,
     supports: 58,
   },
