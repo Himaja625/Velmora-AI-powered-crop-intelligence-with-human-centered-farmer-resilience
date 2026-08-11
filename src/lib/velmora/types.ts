@@ -27,6 +27,8 @@ export type CropAnalysis = {
   observations: string[];
   nextSteps: string[];
   treatmentGuidance: string[];
+  isPlantImage?: boolean;
+  severity?: "low" | "moderate" | "high" | "uncertain";
 };
 
 export type WeatherOutlook = {
@@ -52,5 +54,8 @@ export type Advisory = {
   weather: WeatherOutlook;
   actionWindow: ActionWindow;
   generatedAt: string;
-  isDemoData: true;
+  isDemoData: boolean;
+  isDemoAnalysis?: boolean;
+  weatherNote?: string;
+  visionNote?: string;
 };

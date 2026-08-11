@@ -1,12 +1,13 @@
+import { analyzeCropImageServerFn } from "./crop-vision";
+import { buildRealActionWindow, fetchWeatherServerFn } from "./weather";
 import type { Advisory, CropAnalysis, ScanSubmission, WeatherOutlook, ActionWindow } from "./types";
 
 /**
- * DEMO ADVISORY ENGINE — clearly labeled placeholder logic.
+ * DEMO & PRODUCTION ADVISORY ENGINE — combines Gemini Vision and Open-Meteo Weather.
  *
- * No image model or weather API is connected yet, so nothing here inspects the
- * uploaded photo. Results are deterministic per crop + location so a demo is
- * repeatable. Replace `buildDemoAdvisory` with real calls when the crop-vision
- * model and weather provider are wired up.
+ * `buildAdvisoryWithWeather` fetches live crop image analysis via Gemini Vision
+ * and live weather signals via Open-Meteo server functions.
+ * `buildDemoAdvisory` remains as the deterministic offline fallback.
  */
 
 export const CROP_TYPES = [
@@ -155,6 +156,108 @@ export function buildDemoAdvisory(submission: ScanSubmission): Advisory {
     actionWindow: buildActionWindow(weather, analysis),
     generatedAt: new Date().toISOString(),
     isDemoData: true,
+    isDemoAnalysis: true,
+  };
+}
+
+export async function buildAdvisoryWithWeather(submission: ScanSubmission): Promise<{
+  advisory: Advisory;
+  isLiveWeather: boolean;
+  isLiveVision: boolean;
+}> {
+  const seed = hash(`${submission.cropType}|${submission.location}`);
+  const template = ISSUE_LIBRARY[submission.cropType] ?? ISSUE_LIBRARY["Default"]!;
+  const fallbackAnalysis: CropAnalysis = {
+    ...template,
+    cropType: submission.cropType,
+    confidence: 72 + (seed % 20),
+  };
+
+  let analysis: CropAnalysis = fallbackAnalysis;
+  let isLiveVision = false;
+  let visionNote: string | undefined;
+
+  // 1. Attempt Gemini Vision image analysis if leaf image is present
+  if (submission.imageDataUrl && submission.imageDataUrl.startsWith("data:image")) {
+    try {
+      const visionResult = await analyzeCropImageServerFn({
+        data: {
+          imageDataUrl: submission.imageDataUrl,
+          cropType: submission.cropType,
+        },
+      });
+
+      if (visionResult.success && visionResult.cropAnalysis) {
+        analysis = visionResult.cropAnalysis;
+        isLiveVision = true;
+      } else {
+        console.warn("Gemini vision analysis fallback triggered:", visionResult.error);
+        visionNote = "AI crop vision unavailable (missing GEMINI_API_KEY or offline); using demo analysis.";
+      }
+    } catch (err) {
+      console.warn("Gemini vision analysis exception:", err);
+      visionNote = "AI crop vision unavailable; using demo analysis.";
+    }
+  } else {
+    visionNote = "No image data URL provided; using sample crop analysis.";
+  }
+
+  // 2. Fetch live Open-Meteo weather
+  let weather: WeatherOutlook = buildWeather(submission.location, seed);
+  let isLiveWeather = false;
+  let weatherNote: string | undefined;
+  let hourlyPrecipProbs: number[] = [];
+  let hourlyWinds: number[] = [];
+
+  try {
+    let lat: number | undefined;
+    let lon: number | undefined;
+
+    const match = submission.location.match(/(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)/);
+    if (match && match[1] && match[2]) {
+      lat = parseFloat(match[1]);
+      lon = parseFloat(match[2]);
+    }
+
+    const weatherResult = await fetchWeatherServerFn({
+      data: {
+        location: submission.location,
+        ...(typeof lat === "number" && { latitude: lat }),
+        ...(typeof lon === "number" && { longitude: lon }),
+      },
+    });
+
+    if (weatherResult.success && weatherResult.weather) {
+      weather = weatherResult.weather;
+      isLiveWeather = true;
+      hourlyPrecipProbs = weatherResult.hourlyPrecipProbs || [];
+      hourlyWinds = weatherResult.hourlyWinds || [];
+    } else {
+      weatherNote = "Live weather lookup unavailable for this location; displaying sample weather data.";
+    }
+  } catch (err) {
+    console.warn("Live weather lookup exception:", err);
+    weatherNote = "Live weather lookup unavailable for this location; displaying sample weather data.";
+  }
+
+  // 3. Compute Action Window
+  const actionWindow = isLiveWeather
+    ? buildRealActionWindow(weather, analysis, hourlyPrecipProbs, hourlyWinds)
+    : buildActionWindow(weather, analysis);
+
+  return {
+    advisory: {
+      analysis,
+      weather,
+      actionWindow,
+      generatedAt: new Date().toISOString(),
+      isDemoData: !isLiveWeather,
+      isDemoAnalysis: !isLiveVision,
+      ...(weatherNote !== undefined && { weatherNote }),
+      ...(visionNote !== undefined && { visionNote }),
+    },
+    isLiveWeather,
+    isLiveVision,
   };
 }
 
@@ -166,3 +269,5 @@ export const SAMPLE_SUBMISSION: ScanSubmission = {
   locationSource: "manual",
   submittedAt: new Date().toISOString(),
 };
+
+

@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { CROP_TYPES, buildDemoAdvisory } from "@/lib/velmora/demo-advisory";
+import { CROP_TYPES, buildAdvisoryWithWeather, buildDemoAdvisory } from "@/lib/velmora/demo-advisory";
 import { saveScanSession } from "@/lib/velmora/scan-store";
 import type { ScanSubmission } from "@/lib/velmora/types";
 
@@ -121,7 +121,7 @@ function FieldScanPage() {
     return Object.keys(next).length === 0;
   }
 
-  function onSubmit() {
+  async function onSubmit() {
     if (!validate() || !preview) return;
     setSubmitting(true);
     const submission: ScanSubmission = {
@@ -132,10 +132,18 @@ function FieldScanPage() {
       locationSource,
       submittedAt: new Date().toISOString(),
     };
-    saveScanSession(submission, buildDemoAdvisory(submission));
-    window.setTimeout(() => {
+
+    try {
+      const { advisory } = await buildAdvisoryWithWeather(submission);
+      saveScanSession(submission, advisory);
       void navigate({ to: "/advisory" });
-    }, 700);
+    } catch (err) {
+      console.error("Error generating advisory with weather:", err);
+      saveScanSession(submission, buildDemoAdvisory(submission));
+      void navigate({ to: "/advisory" });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const errorCount = Object.values(errors).filter(Boolean).length;
@@ -304,7 +312,7 @@ function FieldScanPage() {
               </p>
               <Button size="lg" onClick={onSubmit} disabled={submitting}>
                 {submitting && <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />}
-                {submitting ? "Preparing advisory" : "Continue to analysis"}
+                {submitting ? "Analyzing crop photo & live weather..." : "Continue to analysis"}
               </Button>
             </div>
           </CardContent>
@@ -340,12 +348,11 @@ function FieldScanPage() {
             </CardContent>
           </Card>
 
-          <Card className="border-caution/40 bg-caution-soft/70">
+          <Card className="border-border/80 bg-secondary/50">
             <CardContent className="p-5 text-sm">
-              <h2 className="text-sm font-semibold">Prototype honesty note</h2>
+              <h2 className="text-sm font-semibold">Live weather integration</h2>
               <p className="mt-2 text-muted-foreground">
-                No crop-vision model or weather API is connected yet, so the advisory you see next is clearly
-                labeled demo output. Your photo stays in this browser session only.
+                Live forecast is fetched from Open-Meteo for your field location. The crop diagnosis model remains sample output.
               </p>
             </CardContent>
           </Card>

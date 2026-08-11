@@ -3,12 +3,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   CloudRain,
+  CloudSun,
   Clock,
   Droplets,
   Eye,
   Info,
   Leaf,
   ListChecks,
+  Loader2,
   Sparkles,
   Thermometer,
   Wind,
@@ -21,7 +23,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { COMMUNITY_SIGNAL } from "@/lib/velmora/community";
-import { SAMPLE_SUBMISSION, buildDemoAdvisory } from "@/lib/velmora/demo-advisory";
+import { SAMPLE_SUBMISSION, buildAdvisoryWithWeather, buildDemoAdvisory } from "@/lib/velmora/demo-advisory";
 import { loadScanSession } from "@/lib/velmora/scan-store";
 import type { Advisory, ScanSubmission } from "@/lib/velmora/types";
 
@@ -63,8 +65,14 @@ function AdvisoryPage() {
       setState(session);
       return;
     }
-    setState({ submission: SAMPLE_SUBMISSION, advisory: buildDemoAdvisory(SAMPLE_SUBMISSION) });
     setIsSample(true);
+    buildAdvisoryWithWeather(SAMPLE_SUBMISSION)
+      .then(({ advisory }) => {
+        setState({ submission: SAMPLE_SUBMISSION, advisory });
+      })
+      .catch(() => {
+        setState({ submission: SAMPLE_SUBMISSION, advisory: buildDemoAdvisory(SAMPLE_SUBMISSION) });
+      });
   }, []);
 
   const { advisory, submission } = state;
@@ -72,7 +80,8 @@ function AdvisoryPage() {
   if (!advisory || !submission) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-24 text-center sm:px-6">
-        <p className="text-muted-foreground">Loading advisory…</p>
+        <Loader2 className="mx-auto size-8 animate-spin text-muted-foreground" aria-hidden="true" />
+        <p className="mt-3 text-muted-foreground">Analysing crop photo &amp; retrieving live weather…</p>
       </div>
     );
   }
@@ -97,13 +106,44 @@ function AdvisoryPage() {
       </header>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <Badge variant="outline" className="border-caution/50 bg-caution-soft/70 text-foreground">
-          <Info className="mr-1.5 size-3.5" aria-hidden="true" />
-          Demo advisory — no crop-vision model or weather API connected yet
-        </Badge>
+        {/* Vision / crop analysis source badge */}
+        {!advisory.isDemoAnalysis ? (
+          <Badge variant="outline" className="border-leaf/50 bg-leaf-soft/80 text-foreground">
+            <Sparkles className="mr-1.5 size-3.5 text-leaf" aria-hidden="true" />
+            AI crop analysis · Gemini Vision
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="border-caution/50 bg-caution-soft/70 text-foreground">
+            <Info className="mr-1.5 size-3.5" aria-hidden="true" />
+            Sample crop diagnosis model (offline fallback)
+          </Badge>
+        )}
+
+        {/* Weather source badge */}
+        {!advisory.isDemoData ? (
+          <Badge variant="outline" className="border-leaf/50 bg-leaf-soft/80 text-foreground">
+            <CloudSun className="mr-1.5 size-3.5 text-leaf" aria-hidden="true" />
+            Live weather · Open-Meteo
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="border-caution/50 bg-caution-soft/70 text-foreground">
+            <CloudSun className="mr-1.5 size-3.5" aria-hidden="true" />
+            Sample weather data (offline fallback)
+          </Badge>
+        )}
+
+        {/* Non-plant image warning */}
+        {analysis.isPlantImage === false && (
+          <Badge variant="outline" className="border-destructive/50 bg-destructive/10 text-foreground">
+            <AlertTriangle className="mr-1.5 size-3.5 text-destructive" aria-hidden="true" />
+            Photo does not appear to show a crop leaf — please upload a clear leaf photo
+          </Badge>
+        )}
+
+        {/* Sample scan notice */}
         {isSample && (
           <Badge variant="outline" className="border-border bg-secondary text-foreground">
-            Sample scan shown because no field scan was submitted in this session
+            Sample scan shown — no field scan submitted in this session
           </Badge>
         )}
       </div>
